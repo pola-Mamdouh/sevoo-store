@@ -1,0 +1,68 @@
+const products = [
+  {
+    id: "p1",
+    name: "تيشيرت قطن ساده",
+    price: 250,
+    description: "تيشيرت قطن 100% مريح في اللبس ومناسب للاستخدام اليومي",
+    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=400&h=500&fit=crop",
+    category: "تيشيرتات",
+  },
+  {
+    id: "p2",
+    name: "تيشيرت مطبوع",
+    price: 300,
+    description: "تيشيرت بتصميم عصري وخامة ممتازة",
+    image: "https://images.unsplash.com/photo-1503341504253-dff4815485f1?w=400&h=500&fit=crop",
+    category: "تيشيرتات",
+  },
+  {
+    id: "p3",
+    name: "قميص كاجوال",
+    price: 450,
+    description: "قميص كاجوال مناسب للخروج والمناسبات البسيطة",
+    image: "https://images.unsplash.com/photo-1598033129073-05225d1c6a61?w=400&h=500&fit=crop",
+    category: "قمصان",
+  },
+  {
+    id: "p4",
+    name: "هودي شتوي",
+    price: 600,
+    description: "هودي شتوي تقيل بخامة عالية الجودة",
+    image: "https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=400&h=500&fit=crop",
+    category: "هوديز",
+  },
+  {
+    id: "p5",
+    name: "سويت شيرت",
+    price: 500,
+    description: "سويت شيرت مريح وعملي للبس اليومي",
+    image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=400&h=500&fit=crop",
+    category: "سويت شيرت",
+  },
+  {
+    id: "p6",
+    name: "بنطلون جينز",
+    price: 700,
+    description: "بنطلون جينز خامة ممتازة وقصّة عصرية",
+    image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=400&h=500&fit=crop",
+    category: "بناطيل",
+  },
+  {
+    id: "p7",
+    name: "بنطلون قماش",
+    price: 550,
+    description: "بنطلون قماش مناسب للشغل والخروجات الرسمية",
+    image: "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400&h=500&fit=crop",
+    category: "بناطيل",
+  },
+  {
+    id: "p8",
+    name: "جاكيت خفيف",
+    price: 850,
+    description: "جاكيت خفيف مناسب لفصل الخريف",
+    image: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=400&h=500&fit=crop",
+    category: "جاكيتات",
+  },
+];
+
+export default products;
