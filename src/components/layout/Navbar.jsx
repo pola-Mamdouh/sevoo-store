@@ -9,7 +9,7 @@ import { logoutUser } from '../../firebase/authService';
 
 const Navbar = () => {
   const { cartItems } = useCart();
-  const { user } = useUser();
+  const { user, loading } = useUser(); // 👈 استخدم loading
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -23,9 +23,8 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 bg-surface/80 backdrop-blur-md border-b border-gray-100 z-50">
       <div className="container mx-auto px-4">
-        {/* Desktop & Tablet */}
         <div className="grid grid-cols-3 items-center h-16">
-          {/* الجانب الأيسر (في RTL) - أيقونة البحث (تظهر فقط على الشاشات المتوسطة فأكبر) */}
+          {/* الجانب الأيسر - أيقونة البحث */}
           <div className="flex justify-start">
             <Button
               variant="ghost"
@@ -47,9 +46,13 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* الجانب الأيمن (في RTL) - أيقونات المستخدم والسلة */}
+          {/* الجانب الأيمن - أيقونات المستخدم والسلة */}
           <div className="flex justify-end items-center gap-1">
-            {user ? (
+            {loading ? ( // 👈 أثناء التحميل، اعرض أيقونة محايدة
+              <div className="w-8 h-8 flex items-center justify-center">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : user ? (
               <>
                 <span className="hidden md:block text-sm text-text-muted ml-2">
                   {user.displayName || 'مستخدم'}

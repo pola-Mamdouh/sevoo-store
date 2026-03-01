@@ -7,11 +7,12 @@ import {
   Settings, 
   LogOut,
   Menu,
-  X
+  X,
+  ShoppingBag 
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAdmin } from '../../store/AdminContext';
-import { logoutUser } from '../../firebase/authService'; // 👈 استخدم logoutUser
+import { logoutUser } from '../../firebase/authService';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -22,6 +23,7 @@ const AdminLayout = () => {
     { path: '/admin', icon: LayoutDashboard, label: 'الرئيسية', end: true },
     { path: '/admin/products', icon: Package, label: 'المنتجات' },
     { path: '/admin/products/new', icon: PlusCircle, label: 'إضافة منتج' },
+    { path: '/admin/orders', icon: ShoppingBag, label: 'الطلبات' }, // 👈 أضف هذا السطر
     { path: '/admin/settings', icon: Settings, label: 'الإعدادات' },
   ];
 
@@ -32,7 +34,7 @@ const AdminLayout = () => {
 
   const handleLogout = async () => {
     try {
-      await logoutUser(); // 👈 استخدم logoutUser
+      await logoutUser();
       adminDispatch({ type: 'SET_ADMIN', payload: false });
     } catch (error) {
       console.error('Logout error:', error);

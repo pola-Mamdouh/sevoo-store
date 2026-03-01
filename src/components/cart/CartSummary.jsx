@@ -1,8 +1,7 @@
-// src/components/cart/CartSummary.jsx
 import { CreditCard, Truck } from 'lucide-react';
 import Button from "../ui/Button";
 
-const CartSummary = ({ total, subtotal, shipping, onOrder, user }) => {
+const CartSummary = ({ total, subtotal, shipping, onOrder, isSubmitting }) => {
   return (
     <div className="bg-surface rounded-(--radius-card) p-6 shadow-(--shadow-card) border border-gray-100 sticky top-24">
       <h3 className="font-heading font-semibold text-lg mb-4">ملخص الطلب</h3>
@@ -19,7 +18,7 @@ const CartSummary = ({ total, subtotal, shipping, onOrder, user }) => {
         <div className="border-t border-gray-100 pt-3 mt-3">
           <div className="flex justify-between font-bold text-lg">
             <span>الإجمالي</span>
-            <span className="text-primary">{total} جنيه</span>
+            <span className="text-primary">{total + shipping} جنيه</span>
           </div>
         </div>
       </div>
@@ -29,17 +28,20 @@ const CartSummary = ({ total, subtotal, shipping, onOrder, user }) => {
         size="lg"
         className="w-full mt-6"
         onClick={onOrder}
-        // disabled={!user && !guestName} // لو عايز تتطلب الاسم، لكن حالياً اختياري
+        disabled={isSubmitting}
       >
-        <CreditCard className="w-4 h-4" />
-        إتمام الطلب عبر واتساب
+        {isSubmitting ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin ml-2" />
+            جاري التحميل...
+          </>
+        ) : (
+          <>
+            <CreditCard className="w-4 h-4 ml-2" />
+            إتمام الطلب عبر واتساب
+          </>
+        )}
       </Button>
-
-      {!user && (
-        <p className="text-xs text-text-muted text-center mt-2">
-          يمكنك إضافة اسمك ورسالة اختيارية أعلاه
-        </p>
-      )}
 
       <div className="flex items-center justify-center gap-2 mt-4 text-xs text-text-muted">
         <Truck className="w-3.5 h-3.5" />

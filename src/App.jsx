@@ -18,6 +18,7 @@ const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'))
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'))
 const AdminProducts = lazy(() => import('./pages/admin/AdminProducts'))
 const AdminProductForm = lazy(() => import('./pages/admin/AdminProductForm'))
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders')) // 👈 أضف هذا السطر
 
 function App() {
   return (
@@ -49,6 +50,7 @@ function App() {
             <Route path="products" element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="products/new" element={<AdminRoute><AdminProductForm /></AdminRoute>} />
             <Route path="products/edit/:productId" element={<AdminRoute><AdminProductForm /></AdminRoute>} />
+            <Route path="orders" element={<AdminRoute><AdminOrders /></AdminRoute>} /> {/* 👈 أضف هذا السطر */}
           </Route>
         </Routes>
       </Suspense>

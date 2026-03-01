@@ -6,13 +6,14 @@ const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // 👈 مهم جداً
 
   useEffect(() => {
+    console.log('🔄 Checking auth state...');
     const unsubscribe = onAuthChange((user) => {
-      console.log('Auth state changed:', user); // للتصحيح
+      console.log('👤 Auth state changed:', user);
       setUser(user);
-      setLoading(false);
+      setLoading(false); // 👈 بعد ما نعرف حالة المستخدم، نوقف التحميل
     });
 
     return unsubscribe;

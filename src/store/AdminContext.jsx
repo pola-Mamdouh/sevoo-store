@@ -5,8 +5,15 @@ import {
   addProduct, 
   updateProduct, 
   deleteProduct,
-  getProductsCount
+  getProductsCount 
 } from '../firebase/productsService';
+import { 
+  fetchOrders,
+  addOrder,
+  updateOrderStatus,
+  deleteOrder,
+  getOrdersCount
+} from '../firebase/ordersService';
 import { onAuthChange } from '../firebase/authService';
 
 const AdminContext = createContext();
@@ -14,13 +21,17 @@ const AdminContext = createContext();
 const initialState = {
   isAdmin: false,
   products: [],
-  allProducts: [], // جميع المنتجات للإدارة (بدون pagination)
+  allProducts: [],
+  orders: [],
   selectedProduct: null,
   isLoading: false,
   isLoadingMore: false,
+  isLoadingOrders: false,
   hasMore: true,
   lastVisible: null,
   totalCount: 0,
+  totalOrdersCount: 0,
+  ordersError: null,
   error: null
 };
 
@@ -30,8 +41,12 @@ const adminReducer = (state, action) => {
       return { ...state, isLoading: action.payload, error: null };
     case 'SET_LOADING_MORE':
       return { ...state, isLoadingMore: action.payload };
+    case 'SET_ORDERS_LOADING':
+      return { ...state, isLoadingOrders: action.payload, ordersError: null };
     case 'SET_ERROR':
       return { ...state, isLoading: false, isLoadingMore: false, error: action.payload };
+    case 'SET_ORDERS_ERROR':
+      return { ...state, isLoadingOrders: false, ordersError: action.payload };
     case 'SET_PRODUCTS':
       return { 
         ...state, 
@@ -52,11 +67,19 @@ const adminReducer = (state, action) => {
       return { ...state, allProducts: action.payload };
     case 'SET_TOTAL_COUNT':
       return { ...state, totalCount: action.payload };
+    case 'SET_TOTAL_ORDERS_COUNT':
+      return { ...state, totalOrdersCount: action.payload };
+    case 'SET_ORDERS':
+      return { 
+        ...state, 
+        orders: action.payload, 
+        isLoadingOrders: false 
+      };
     case 'ADD_PRODUCT':
       return { 
         ...state, 
         allProducts: [...state.allProducts, action.payload],
-        products: [action.payload, ...state.products] // أضف في الأول
+        products: [action.payload, ...state.products]
       };
     case 'UPDATE_PRODUCT':
       return {
@@ -73,6 +96,25 @@ const adminReducer = (state, action) => {
         ...state,
         allProducts: state.allProducts.filter(p => p.id !== action.payload),
         products: state.products.filter(p => p.id !== action.payload)
+      };
+    case 'ADD_ORDER':
+      return { 
+        ...state, 
+        orders: [action.payload, ...state.orders]
+      };
+    case 'UPDATE_ORDER_STATUS':
+      return {
+        ...state,
+        orders: state.orders.map(order =>
+          order.id === action.payload.id 
+            ? { ...order, status: action.payload.status, updatedAt: new Date().toISOString() }
+            : order
+        )
+      };
+    case 'DELETE_ORDER':
+      return {
+        ...state,
+        orders: state.orders.filter(order => order.id !== action.payload)
       };
     case 'SET_ADMIN':
       return { ...state, isAdmin: action.payload };
@@ -91,7 +133,7 @@ const adminReducer = (state, action) => {
 
 export const AdminProvider = ({ children }) => {
   const [state, dispatch] = useReducer(adminReducer, initialState);
-  const PAGE_SIZE = 12; // عدد المنتجات في كل صفحة
+  const PAGE_SIZE = 12;
 
   // Listen to auth state
   useEffect(() => {
@@ -101,12 +143,11 @@ export const AdminProvider = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  // Load initial products
+  // Load products from Firestore
   useEffect(() => {
-    const loadInitialProducts = async () => {
+    const loadProducts = async () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // جلب العدد الكلي للمنتجات
       try {
         const count = await getProductsCount();
         dispatch({ type: 'SET_TOTAL_COUNT', payload: count });
@@ -114,12 +155,10 @@ export const AdminProvider = ({ children }) => {
         console.error('Error getting count:', error);
       }
       
-      // جلب الصفحة الأولى
       try {
         const result = await fetchProducts(null, PAGE_SIZE);
         dispatch({ type: 'SET_PRODUCTS', payload: result });
         
-        // جلب جميع المنتجات للإدارة (لو العدد قليل)
         if (result.hasMore) {
           loadAllProductsForAdmin();
         } else {
@@ -131,10 +170,34 @@ export const AdminProvider = ({ children }) => {
       }
     };
     
-    loadInitialProducts();
+    loadProducts();
   }, []);
 
-  // جلب جميع المنتجات للإدارة (مرة واحدة)
+  // Load orders from Firestore (for admin only)
+  const loadOrders = async () => {
+    if (!state.isAdmin) return;
+    
+    dispatch({ type: 'SET_ORDERS_LOADING', payload: true });
+    try {
+      const orders = await fetchOrders();
+      dispatch({ type: 'SET_ORDERS', payload: orders });
+      
+      const count = await getOrdersCount();
+      dispatch({ type: 'SET_TOTAL_ORDERS_COUNT', payload: count });
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      dispatch({ type: 'SET_ORDERS_ERROR', payload: error.message });
+    }
+  };
+
+  // Load orders when admin status changes
+  useEffect(() => {
+    if (state.isAdmin) {
+      loadOrders();
+    }
+  }, [state.isAdmin]);
+
+  // Load all products for admin
   const loadAllProductsForAdmin = async () => {
     try {
       let allProducts = [];
@@ -142,7 +205,7 @@ export const AdminProvider = ({ children }) => {
       let hasMore = true;
       
       while (hasMore) {
-        const result = await fetchProducts(lastVisible, 50); // جيب 50 كل مرة
+        const result = await fetchProducts(lastVisible, 50);
         allProducts = [...allProducts, ...result.products];
         lastVisible = result.lastVisible;
         hasMore = result.hasMore;
@@ -154,7 +217,7 @@ export const AdminProvider = ({ children }) => {
     }
   };
 
-  // تحميل المزيد من المنتجات
+  // Load more products
   const loadMoreProducts = async () => {
     if (!state.hasMore || state.isLoadingMore) return;
     
@@ -170,71 +233,95 @@ export const AdminProvider = ({ children }) => {
   };
 
   // Async actions
-const actions = {
-  addProduct: async (productData) => {
-       
-    try {
-      const newProduct = await addProduct(productData);
-      dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
-      
-      // تحديث العدد الكلي
-      const count = await getProductsCount();
-      dispatch({ type: 'SET_TOTAL_COUNT', payload: count });
-      
-      return newProduct;
-    } catch (error) {
-      console.error('Error adding product:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      throw error;
-    }
-  },
-  
-  updateProduct: async (id, productData) => {
-    // من غير ما تعمل setLoading
-    try {
-      const updated = await updateProduct(id, productData);
-      dispatch({ type: 'UPDATE_PRODUCT', payload: updated });
-      return updated;
-    } catch (error) {
-      console.error('Error updating product:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      throw error;
-    }
-  },
-  
-  deleteProduct: async (id) => {
-    // من غير ما تعمل setLoading
-    try {
-      await deleteProduct(id);
-      dispatch({ type: 'DELETE_PRODUCT', payload: id });
-      
-      const count = await getProductsCount();
-      dispatch({ type: 'SET_TOTAL_COUNT', payload: count });
-      
-      return id;
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-      throw error;
-    }
-  },
-  
-  loadMoreProducts: async () => {
-    if (!state.hasMore || state.isLoadingMore) return;
+  const actions = {
+    // Product actions
+    addProduct: async (productData) => {
+      try {
+        const newProduct = await addProduct(productData);
+        dispatch({ type: 'ADD_PRODUCT', payload: newProduct });
+        
+        const count = await getProductsCount();
+        dispatch({ type: 'SET_TOTAL_COUNT', payload: count });
+        
+        return newProduct;
+      } catch (error) {
+        console.error('Error adding product:', error);
+        dispatch({ type: 'SET_ERROR', payload: error.message });
+        throw error;
+      }
+    },
     
-    dispatch({ type: 'SET_LOADING_MORE', payload: true });
+    updateProduct: async (id, productData) => {
+      try {
+        const updated = await updateProduct(id, productData);
+        dispatch({ type: 'UPDATE_PRODUCT', payload: updated });
+        return updated;
+      } catch (error) {
+        console.error('Error updating product:', error);
+        dispatch({ type: 'SET_ERROR', payload: error.message });
+        throw error;
+      }
+    },
     
-    try {
-      const result = await fetchProducts(state.lastVisible, PAGE_SIZE);
-      dispatch({ type: 'ADD_MORE_PRODUCTS', payload: result });
-    } catch (error) {
-      console.error('Error loading more products:', error);
-      dispatch({ type: 'SET_ERROR', payload: error.message });
-    }
-  },
-  
-  resetPagination: () => dispatch({ type: 'RESET_PAGINATION' })
-};
+    deleteProduct: async (id) => {
+      try {
+        await deleteProduct(id);
+        dispatch({ type: 'DELETE_PRODUCT', payload: id });
+        
+        const count = await getProductsCount();
+        dispatch({ type: 'SET_TOTAL_COUNT', payload: count });
+        
+        return id;
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        dispatch({ type: 'SET_ERROR', payload: error.message });
+        throw error;
+      }
+    },
+    
+    // Order actions
+    addOrder: async (orderData) => {
+      try {
+        const newOrder = await addOrder(orderData);
+        dispatch({ type: 'ADD_ORDER', payload: newOrder });
+        
+        const count = await getOrdersCount();
+        dispatch({ type: 'SET_TOTAL_ORDERS_COUNT', payload: count });
+        
+        return newOrder;
+      } catch (error) {
+        console.error('Error adding order:', error);
+        throw error;
+      }
+    },
+    
+    updateOrderStatus: async (id, status) => {
+      try {
+        await updateOrderStatus(id, status);
+        dispatch({ type: 'UPDATE_ORDER_STATUS', payload: { id, status } });
+      } catch (error) {
+        console.error('Error updating order status:', error);
+        throw error;
+      }
+    },
+    
+    deleteOrder: async (id) => {
+      try {
+        await deleteOrder(id);
+        dispatch({ type: 'DELETE_ORDER', payload: id });
+        
+        const count = await getOrdersCount();
+        dispatch({ type: 'SET_TOTAL_ORDERS_COUNT', payload: count });
+      } catch (error) {
+        console.error('Error deleting order:', error);
+        throw error;
+      }
+    },
+    
+    reloadOrders: loadOrders,
+    loadMoreProducts,
+    resetPagination: () => dispatch({ type: 'RESET_PAGINATION' })
+  };
 
   return (
     <AdminContext.Provider value={{ 
