@@ -9,7 +9,7 @@ const Footer = () => {
             © {new Date().getFullYear()} Sevoo Store. جميع الحقوق محفوظة
           </p>
           <p className="text-text-muted text-sm flex items-center gap-1">
-            صنع بكل <Heart className="w-3.5 h-3.5 text-danger fill-current" /> في مصر
+              Made by Paula<Heart className="w-3.5 h-3.5 text-danger fill-current" />  
           </p>
         </div>
       </div>

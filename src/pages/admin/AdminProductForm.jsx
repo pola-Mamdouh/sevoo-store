@@ -1,55 +1,50 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useAdmin } from "../../store/AdminContext";
-import { Save, X, Image as ImageIcon } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAdmin } from '../../store/AdminContext';
+import { Save, X, Image as ImageIcon } from 'lucide-react';
+import Popup from '../../components/ui/Popup';
 
 const AdminProductForm = () => {
   const navigate = useNavigate();
   const { productId } = useParams();
-
   const { adminState, actions } = useAdmin();
-  const { isLoading } = adminState;
   const products = adminState.products;
   const isEditing = !!productId;
 
   const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    price: "",
-    description: "",
-    category: "",
-    image: "",
-    stock: "",
+    id: '',
+    name: '',
+    price: '',
+    description: '',
+    category: '',
+    image: '',
+    stock: '',
     isNew: false,
-    discount: "",
+    discount: ''
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false); // 👈 use local state only
+  const [popup, setPopup] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   // Load product data if editing
   useEffect(() => {
     if (isEditing) {
-      const product = products.find((p) => p.id === productId);
+      const product = products.find(p => p.id === productId);
       if (product) {
         setFormData({
           id: product.id,
           name: product.name,
           price: product.price,
-          description: product.description || "",
-          category: product.category || "",
+          description: product.description || '',
+          category: product.category || '',
           image: product.image,
-          stock: product.stock || "",
+          stock: product.stock || '',
           isNew: product.isNew || false,
-          discount: product.discount || "",
+          discount: product.discount || ''
         });
       }
-    } else {
-      // For new product, Firestore will generate ID automatically
-      setFormData((prev) => ({
-        ...prev,
-        id: "", // remove local ID generation
-      }));
     }
   }, [isEditing, productId, products]);
 
@@ -58,23 +53,23 @@ const AdminProductForm = () => {
     const newErrors = {};
 
     if (!formData.name.trim()) {
-      newErrors.name = "اسم المنتج مطلوب";
+      newErrors.name = 'اسم المنتج مطلوب';
     }
 
     if (!formData.price) {
-      newErrors.price = "سعر المنتج مطلوب";
+      newErrors.price = 'سعر المنتج مطلوب';
     } else if (isNaN(formData.price) || formData.price <= 0) {
-      newErrors.price = "يرجى إدخال سعر صحيح";
+      newErrors.price = 'يرجى إدخال سعر صحيح';
     }
 
     if (!formData.category.trim()) {
-      newErrors.category = "الفئة مطلوبة";
+      newErrors.category = 'الفئة مطلوبة';
     }
 
     if (!formData.image.trim()) {
-      newErrors.image = "صورة المنتج مطلوبة";
+      newErrors.image = 'صورة المنتج مطلوبة';
     } else if (!formData.image.match(/^https?:\/\/.+/)) {
-      newErrors.image = "يرجى إدخال رابط صورة صحيح";
+      newErrors.image = 'يرجى إدخال رابط صورة صحيح';
     }
 
     setErrors(newErrors);
@@ -87,52 +82,64 @@ const AdminProductForm = () => {
     if (!validateForm()) return;
 
     const productData = {
-      ...formData,
+      name: formData.name,
       price: Number(formData.price),
+      description: formData.description,
+      category: formData.category,
+      image: formData.image,
       stock: formData.stock ? Number(formData.stock) : 0,
+      isNew: formData.isNew,
       discount: formData.discount ? Number(formData.discount) : 0,
     };
 
-    // Remove id field for new products
-    if (!isEditing) {
-      delete productData.id;
-    }
-
-    setIsSubmitting(true);
+    setIsSubmitting(true); // 👈 start local loading
 
     try {
       if (isEditing) {
         await actions.updateProduct(productId, productData);
+        setPopup({
+          type: 'success',
+          title: 'تم التعديل',
+          message: 'تم تعديل المنتج بنجاح'
+        });
       } else {
         await actions.addProduct(productData);
+        setPopup({
+          type: 'success',
+          title: 'تم الإضافة',
+          message: 'تم إضافة المنتج بنجاح'
+        });
       }
-      navigate("/admin/products");
+      
+      // Wait a bit to show success message then navigate
+      setTimeout(() => {
+        navigate('/admin/products');
+      }, 1500);
+      
     } catch (error) {
-      console.error("Error saving product:", error);
-      alert("حدث خطأ أثناء حفظ المنتج");
-    } finally {
-      setIsSubmitting(false);
+      console.error('Error saving product:', error);
+      setPopup({
+        type: 'error',
+        title: 'خطأ',
+        message: 'حدث خطأ أثناء حفظ المنتج'
+      });
+      setIsSubmitting(false); // 👈 stop loading on error
     }
   };
 
-  const suggestedCategories = [
-    "تيشيرتات",
-    "قمصان",
-    "بناطيل",
-    "هوديز",
-    "جاكيتات",
-  ];
+  const suggestedCategories = ['تيشيرتات', 'قمصان', 'بناطيل', 'هوديز', 'جاكيتات'];
 
   return (
     <div className="max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-heading font-bold text-text-primary">
-          {isEditing ? "تعديل المنتج" : "إضافة منتج جديد"}
+          {isEditing ? 'تعديل المنتج' : 'إضافة منتج جديد'}
         </h1>
         <button
-          onClick={() => navigate("/admin/products")}
+          onClick={() => navigate('/admin/products')}
           className="text-text-muted hover:text-text-primary transition-colors"
+          disabled={isSubmitting}
         >
           <X className="w-6 h-6" />
         </button>
@@ -151,16 +158,13 @@ const AdminProductForm = () => {
               <input
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
-                  ${errors.name ? "border-danger" : "border-gray-200 focus:border-accent"}`}
+                  ${errors.name ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
                 placeholder="مثال: تيشيرت قطن ساده"
+                disabled={isSubmitting}
               />
-              {errors.name && (
-                <p className="text-danger text-sm mt-1">{errors.name}</p>
-              )}
+              {errors.name && <p className="text-danger text-sm mt-1">{errors.name}</p>}
             </div>
 
             {/* Price */}
@@ -171,16 +175,13 @@ const AdminProductForm = () => {
               <input
                 type="number"
                 value={formData.price}
-                onChange={(e) =>
-                  setFormData({ ...formData, price: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
-                  ${errors.price ? "border-danger" : "border-gray-200 focus:border-accent"}`}
+                  ${errors.price ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
                 placeholder="مثال: 250"
+                disabled={isSubmitting}
               />
-              {errors.price && (
-                <p className="text-danger text-sm mt-1">{errors.price}</p>
-              )}
+              {errors.price && <p className="text-danger text-sm mt-1">{errors.price}</p>}
             </div>
 
             {/* Category */}
@@ -191,22 +192,19 @@ const AdminProductForm = () => {
               <input
                 type="text"
                 value={formData.category}
-                onChange={(e) =>
-                  setFormData({ ...formData, category: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 list="categories"
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
-                  ${errors.category ? "border-danger" : "border-gray-200 focus:border-accent"}`}
+                  ${errors.category ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
                 placeholder="مثال: تيشيرتات"
+                disabled={isSubmitting}
               />
               <datalist id="categories">
-                {suggestedCategories.map((cat) => (
+                {suggestedCategories.map(cat => (
                   <option key={cat} value={cat} />
                 ))}
               </datalist>
-              {errors.category && (
-                <p className="text-danger text-sm mt-1">{errors.category}</p>
-              )}
+              {errors.category && <p className="text-danger text-sm mt-1">{errors.category}</p>}
             </div>
 
             {/* Stock */}
@@ -217,11 +215,10 @@ const AdminProductForm = () => {
               <input
                 type="number"
                 value={formData.stock}
-                onChange={(e) =>
-                  setFormData({ ...formData, stock: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-colors"
                 placeholder="مثال: 100"
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -233,12 +230,11 @@ const AdminProductForm = () => {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows="4"
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-colors resize-none"
               placeholder="وصف تفصيلي للمنتج..."
+              disabled={isSubmitting}
             />
           </div>
 
@@ -252,30 +248,23 @@ const AdminProductForm = () => {
                 <input
                   type="url"
                   value={formData.image}
-                  onChange={(e) =>
-                    setFormData({ ...formData, image: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
-                    ${errors.image ? "border-danger" : "border-gray-200 focus:border-accent"}`}
+                    ${errors.image ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
                   placeholder="https://example.com/image.jpg"
+                  disabled={isSubmitting}
                 />
-                {errors.image && (
-                  <p className="text-danger text-sm mt-1">{errors.image}</p>
-                )}
+                {errors.image && <p className="text-danger text-sm mt-1">{errors.image}</p>}
               </div>
 
               {/* Image Preview */}
               <div className="w-full md:w-48 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                {formData.image ? (
+                {formData.image && !imageError ? (
                   <img
                     src={formData.image}
                     alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src =
-                        "https://via.placeholder.com/200x150?text=Invalid+Image";
-                    }}
+                    className="w-full h-full object-contain"
+                    onError={() => setImageError(true)}
                   />
                 ) : (
                   <div className="text-center text-text-muted">
@@ -293,10 +282,9 @@ const AdminProductForm = () => {
               <input
                 type="checkbox"
                 checked={formData.isNew}
-                onChange={(e) =>
-                  setFormData({ ...formData, isNew: e.target.checked })
-                }
+                onChange={(e) => setFormData({ ...formData, isNew: e.target.checked })}
                 className="w-4 h-4 text-accent rounded border-gray-300 focus:ring-accent"
+                disabled={isSubmitting}
               />
               <span className="text-sm">منتج جديد</span>
             </label>
@@ -308,12 +296,11 @@ const AdminProductForm = () => {
               <input
                 type="number"
                 value={formData.discount}
-                onChange={(e) =>
-                  setFormData({ ...formData, discount: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
                 min="0"
                 max="100"
                 className="w-full px-3 py-1 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none transition-colors"
+                disabled={isSubmitting}
               />
             </div>
           </div>
@@ -323,17 +310,18 @@ const AdminProductForm = () => {
         <div className="flex items-center justify-end gap-3">
           <button
             type="button"
-            onClick={() => navigate("/admin/products")}
+            onClick={() => navigate('/admin/products')}
             className="px-6 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            disabled={isSubmitting}
           >
             إلغاء
           </button>
           <button
             type="submit"
-            disabled={isLoading} // 👈 Use global isLoading
-            className="bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            disabled={isSubmitting}
+            className="bg-primary text-white px-6 py-2.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 min-w-[120px] justify-center"
           >
-            {isLoading ? ( // 👈 Use global isLoading
+            {isSubmitting ? (
               <>
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 جاري الحفظ...
@@ -347,6 +335,17 @@ const AdminProductForm = () => {
           </button>
         </div>
       </form>
+
+      {/* Popup Notification */}
+      {popup && (
+        <Popup
+          type={popup.type}
+          title={popup.title}
+          message={popup.message}
+          onClose={() => setPopup(null)}
+          autoClose={3000}
+        />
+      )}
     </div>
   );
 };

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { useAdmin } from '../../store/AdminContext';
-import { logoutAdmin } from '../../firebase/authService';
+import { logoutUser } from '../../firebase/authService'; // 👈 استخدم logoutUser
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -32,7 +32,7 @@ const AdminLayout = () => {
 
   const handleLogout = async () => {
     try {
-      await logoutAdmin();
+      await logoutUser(); // 👈 استخدم logoutUser
       adminDispatch({ type: 'SET_ADMIN', payload: false });
     } catch (error) {
       console.error('Logout error:', error);

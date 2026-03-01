@@ -1,3 +1,4 @@
+// src/App.jsx
 import { Suspense, lazy } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/layout/Layout'
@@ -8,6 +9,7 @@ import AdminRoute from './components/AdminRoute'
 const HomePage = lazy(() => import('./pages/Home'))
 const ProductDetailsPage = lazy(() => import('./pages/ProductDetails'))
 const CartPage = lazy(() => import('./pages/CartPage'))
+const AuthPage = lazy(() => import('./pages/AuthPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFound'))
 
 // Admin Pages
@@ -20,13 +22,21 @@ const AdminProductForm = lazy(() => import('./pages/admin/AdminProductForm'))
 function App() {
   return (
     <AdminProvider>
-      <Suspense fallback={<div className="p-8 text-center">جاري التحميل...</div>}>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-text-muted">جاري التحميل...</p>
+          </div>
+        </div>
+      }>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<Layout />}>
             <Route index element={<HomePage />} />
             <Route path="product/:productId" element={<ProductDetailsPage />} />
             <Route path="cart" element={<CartPage />} />
+            <Route path="auth" element={<AuthPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
 
