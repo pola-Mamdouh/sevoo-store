@@ -5,7 +5,7 @@ import ProductList from '../components/product/ProductList';
 
 const Home = () => {
   const { adminState } = useAdmin();
-  const products = adminState.products;
+  const { products, isLoading } = adminState; // 👈 استخدم isLoading
 
   // Debug: log products whenever they change
   useEffect(() => {
@@ -15,8 +15,8 @@ const Home = () => {
   return (
     <>
       <h1 className="text-xl font-bold mb-6">المنتجات</h1>
-      {/* key forces re-render when length changes */}
-      <ProductList key={products.length} products={products} />
+      {/* مرر isLoading إلى ProductList */}
+      <ProductList products={products} isLoading={isLoading} />
     </>
   );
 };

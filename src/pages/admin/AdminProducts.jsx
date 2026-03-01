@@ -13,13 +13,88 @@ import {
 
 const AdminProducts = () => {
   const { adminState, actions } = useAdmin();
-  const products = adminState.products;
+  const { products, isLoading } = adminState;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [deletingId, setDeletingId] = useState(null);
   const itemsPerPage = 10;
+
+  // Show loading skeleton while fetching initial data
+  if (isLoading && products.length === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Header Skeleton */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="h-8 bg-gray-200 rounded w-48 animate-pulse"></div>
+          <div className="h-10 bg-gray-200 rounded w-32 animate-pulse"></div>
+        </div>
+
+        {/* Search & Filter Skeleton */}
+        <div className="bg-surface rounded-xl p-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1 h-10 bg-gray-200 rounded animate-pulse"></div>
+            <div className="sm:w-48 h-10 bg-gray-200 rounded animate-pulse"></div>
+          </div>
+        </div>
+
+        {/* Table Skeleton */}
+        <div className="bg-surface rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  {[...Array(5)].map((_, i) => (
+                    <th key={i} className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-20 animate-pulse"></div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {[...Array(5)].map((_, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {[...Array(5)].map((_, colIndex) => (
+                      <td key={colIndex} className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          {colIndex === 0 && (
+                            <>
+                              <div className="w-12 h-12 bg-gray-200 rounded-lg animate-pulse"></div>
+                              <div className="flex-1">
+                                <div className="h-4 bg-gray-200 rounded w-32 mb-2 animate-pulse"></div>
+                                <div className="h-3 bg-gray-200 rounded w-24 animate-pulse"></div>
+                              </div>
+                            </>
+                          )}
+                          {colIndex === 1 && (
+                            <div className="h-6 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+                          )}
+                          {colIndex === 2 && (
+                            <div className="h-4 bg-gray-200 rounded w-12 animate-pulse"></div>
+                          )}
+                          {colIndex === 3 && (
+                            <div className="h-6 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+                          )}
+                          {colIndex === 4 && (
+                            <div className="flex gap-2">
+                              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                              <div className="w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
