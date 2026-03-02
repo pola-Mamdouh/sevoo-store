@@ -1,26 +1,30 @@
 // src/pages/CartPage.jsx
 import { useCart } from "../store/CartContext";
 import { useUser } from "../store/UserContext";
-import { useAdmin } from "../store/AdminContext";
+import { useOrders } from "../store/OrdersContext";
 import CartItem from "../components/cart/CartItem";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // 👈 إضافة useNavigate
 import { User, Phone, MessageCircle } from "lucide-react";
 import { useState } from "react";
-import Popup from "../components/ui/Popup";
+import Popup from "../components/ui/Popup"; // تأكد من وجود هذا المكون
 
 const CartPage = () => {
   const { cartItems, totalPrice, dispatch } = useCart();
-  const { user, loading: userLoading } = useUser(); // 👈 أضف user و loading
-  const { actions } = useAdmin();
-  
+  const { user, loading: userLoading } = useUser();
+  const { ordersDispatch } = useOrders();
+  const navigate = useNavigate(); // 👈 إضافة
+
   const [orderLoading, setOrderLoading] = useState(false);
   const [popup, setPopup] = useState(null);
   const [guestInfo, setGuestInfo] = useState({
-    name: '',
-    phone: '',
-    message: ''
+    name: "",
+    phone: "",
+    message: "",
   });
-  const [showGuestForm] = useState(!user);
+
+  // حساب الشحن
+  const shipping = totalPrice > 500 ? 0 : 50;
+  const finalTotal = totalPrice + shipping;
 
   // إذا كان user في حالة تحميل
   if (userLoading) {
@@ -32,105 +36,81 @@ const CartPage = () => {
   }
 
   const handleOrder = async () => {
+    // التحقق من البيانات الأساسية
+    if (!user && (!guestInfo.name || !guestInfo.phone)) {
+      setPopup({
+        type: "error",
+        title: "خطأ",
+        message: "يرجى إدخال الاسم ورقم الهاتف",
+      });
+      return;
+    }
+
     setOrderLoading(true);
-    
-    try {
-      // تجهيز بيانات الطلب
-      const orderData = {
-        items: cartItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          image: item.image
-        })),
-        total: totalPrice,
-        subtotal: totalPrice,
-        shipping: totalPrice > 500 ? 0 : 50,
-        customer: user ? {
-          uid: user.uid,
-          name: user.displayName || 'مستخدم',
-          email: user.email
-        } : {
+
+    // تجهيز بيانات العميل
+    const customer = user
+      ? {
+          name: user.displayName || "مستخدم",
+          phone: user.phoneNumber || "غير متوفر",
+          email: user.email,
+        }
+      : {
           name: guestInfo.name,
           phone: guestInfo.phone,
           message: guestInfo.message,
-          isGuest: true
-        },
-        status: 'pending',
-        createdAt: new Date().toISOString()
-      };
+        };
 
-      // حفظ الطلب في Firebase
-      await actions.addOrder(orderData);
+    // تجهيز الطلب
+    const newOrder = {
+      id: `ORD-${Date.now()}`,
+      items: cartItems,
+      subtotal: totalPrice,
+      shipping,
+      total: finalTotal,
+      date: new Date().toISOString(),
+      status: "قيد الانتظار",
+      customer,
+    };
 
-      // رسالة واتساب
-      const message = user 
-        ? generateWhatsAppMessage(orderData, user)
-        : generateGuestWhatsAppMessage(orderData, guestInfo);
+    // تجهيز رسالة واتساب
+    const itemsList = cartItems
+      .map(
+        (item) =>
+          `${item.name} × ${item.quantity} = ${item.price * item.quantity} جنيه`
+      )
+      .join("\n");
 
-      const url = `https://wa.me/201140385268?text=${encodeURIComponent(message)}`;
-      
-      // مسح السلة
-      dispatch({ type: 'CLEAR_CART' });
-      
-      // فتح واتساب
-      window.open(url, "_blank");
-      
-      setPopup({
-        type: 'success',
-        title: 'تم إرسال الطلب',
-        message: 'سيتم التواصل معك قريباً'
-      });
-      
-    } catch (error) {
-      console.error('Error placing order:', error);
-      setPopup({
-        type: 'error',
-        title: 'خطأ',
-        message: 'حدث خطأ أثناء إرسال الطلب'
-      });
-    } finally {
-      setOrderLoading(false);
-    }
-  };
+    const customerInfo = user
+      ? `👤 الاسم: ${customer.name}\n📧 البريد: ${customer.email || "غير متوفر"}`
+      : `👤 الاسم: ${customer.name}\n📞 الهاتف: ${customer.phone}\n💬 رسالة: ${customer.message || "لا يوجد"}`;
 
-  const generateWhatsAppMessage = (orderData, user) => {
-    const itemsList = orderData.items.map(item => 
-      `🛍️ ${item.name}\n   ${item.quantity} × ${item.price} جنيه = ${item.price * item.quantity} جنيه`
-    ).join('\n\n');
+    const message = `🛍️ طلب جديد:\n\n${itemsList}\n\n💰 الإجمالي: ${finalTotal} جنيه\n🚚 الشحن: ${shipping === 0 ? "مجاني" : shipping + " جنيه"}\n\n${customerInfo}`;
 
-    return `
-👤 *العميل:* ${user.displayName || 'مستخدم'}
-📧 ${user.email}
-📅 ${new Date().toLocaleDateString('ar-EG')}
+    const whatsappUrl = `https://wa.me/201140385268?text=${encodeURIComponent(message)}`;
 
-🛒 *تفاصيل الطلب:*
-${itemsList}
+    // حفظ الطلب
+    ordersDispatch({ type: "ADD_ORDER", payload: newOrder });
 
-💰 *الإجمالي:* ${orderData.total} جنيه
-🚚 *الشحن:* ${orderData.shipping} جنيه
-💵 *المبلغ النهائي:* ${orderData.total + orderData.shipping} جنيه
-    `;
-  };
+    // فتح واتساب في تاب جديد
+    window.open(whatsappUrl, "_blank");
 
-  const generateGuestWhatsAppMessage = (orderData, guestInfo) => {
-    const itemsList = orderData.items.map(item => 
-      `🛍️ ${item.name}\n   ${item.quantity} × ${item.price} جنيه = ${item.price * item.quantity} جنيه`
-    ).join('\n\n');
+    // تفريغ السلة
+    dispatch({ type: "CLEAR_CART" });
 
-    return `
-👤 *العميل:* ${guestInfo.name || 'زائر'}
-📞 *الهاتف:* ${guestInfo.phone || 'غير مدخل'}
-💬 *رسالة:* ${guestInfo.message || 'لا يوجد'}
+    setOrderLoading(false);
 
-🛒 *تفاصيل الطلب:*
-${itemsList}
+    // عرض رسالة نجاح
+    setPopup({
+      type: "success",
+      title: "تم إرسال الطلب",
+      message: "سيتم التواصل معك قريباً عبر واتساب",
+    });
 
-💰 *الإجمالي:* ${orderData.total} جنيه
-🚚 *الشحن:* ${orderData.shipping} جنيه
-💵 *المبلغ النهائي:* ${orderData.total + orderData.shipping} جنيه
-    `;
+    // التوجيه لصفحة الطلبات بعد 2 ثانية
+    setTimeout(() => {
+      navigate("/my-orders");
+    }, 2000);
   };
 
   if (cartItems.length === 0) {
@@ -166,7 +146,7 @@ ${itemsList}
                 <User className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium">{user.displayName || 'مستخدم'}</p>
+                <p className="font-medium">{user.displayName || "مستخدم"}</p>
                 <p className="text-xs text-text-muted">{user.email}</p>
               </div>
             </div>
@@ -174,18 +154,22 @@ ${itemsList}
         )}
 
         {/* نموذج الزائر - لو مش مسجل دخول */}
-        {!user && showGuestForm && (
+        {!user && (
           <div className="bg-surface rounded-(--radius-card) p-4 border border-gray-100 space-y-3">
             <h3 className="font-medium mb-2">معلومات التوصيل</h3>
-            
+
             <div>
-              <label className="block text-xs text-text-muted mb-1">الاسم</label>
+              <label className="block text-xs text-text-muted mb-1">
+                الاسم
+              </label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
                 <input
                   type="text"
                   value={guestInfo.name}
-                  onChange={(e) => setGuestInfo({...guestInfo, name: e.target.value})}
+                  onChange={(e) =>
+                    setGuestInfo({ ...guestInfo, name: e.target.value })
+                  }
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm"
                   placeholder="محمد أحمد"
                   disabled={orderLoading}
@@ -194,13 +178,17 @@ ${itemsList}
             </div>
 
             <div>
-              <label className="block text-xs text-text-muted mb-1">رقم الهاتف</label>
+              <label className="block text-xs text-text-muted mb-1">
+                رقم الهاتف
+              </label>
               <div className="relative">
                 <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
                 <input
                   type="tel"
                   value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
+                  onChange={(e) =>
+                    setGuestInfo({ ...guestInfo, phone: e.target.value })
+                  }
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm"
                   placeholder="01234567890"
                   disabled={orderLoading}
@@ -209,12 +197,16 @@ ${itemsList}
             </div>
 
             <div>
-              <label className="block text-xs text-text-muted mb-1">رسالة (اختياري)</label>
+              <label className="block text-xs text-text-muted mb-1">
+                رسالة (اختياري)
+              </label>
               <div className="relative">
                 <MessageCircle className="absolute right-3 top-3 text-text-muted w-4 h-4" />
                 <textarea
                   value={guestInfo.message}
-                  onChange={(e) => setGuestInfo({...guestInfo, message: e.target.value})}
+                  onChange={(e) =>
+                    setGuestInfo({ ...guestInfo, message: e.target.value })
+                  }
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm resize-none"
                   placeholder="أي ملاحظات للطلب..."
                   rows="2"
@@ -223,16 +215,21 @@ ${itemsList}
               </div>
             </div>
 
-            <Link to="/auth" className="text-xs text-accent hover:underline block text-center mt-2">
+            <Link
+              to="/auth"
+              className="text-xs text-accent hover:underline block text-center mt-2"
+            >
               أو سجل دخول لحفظ بياناتك
             </Link>
           </div>
         )}
 
-        {/* زر إتمام الطلب */}
+        {/* ملخص الطلب وزر الإتمام */}
         <div className="bg-surface rounded-(--radius-card) p-6 shadow-(--shadow-card) border border-gray-100 sticky top-24">
-          <h3 className="font-heading font-semibold text-lg mb-4">ملخص الطلب</h3>
-          
+          <h3 className="font-heading font-semibold text-lg mb-4">
+            ملخص الطلب
+          </h3>
+
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-text-muted">المجموع الفرعي</span>
@@ -240,19 +237,23 @@ ${itemsList}
             </div>
             <div className="flex justify-between">
               <span className="text-text-muted">الشحن</span>
-              <span className="font-medium">{totalPrice > 500 ? 'مجاني' : '50 جنيه'}</span>
+              <span className="font-medium">
+                {shipping === 0 ? "مجاني" : `${shipping} جنيه`}
+              </span>
             </div>
             <div className="border-t border-gray-100 pt-3 mt-3">
               <div className="flex justify-between font-bold text-lg">
                 <span>الإجمالي</span>
-                <span className="text-primary">{totalPrice + (totalPrice > 500 ? 0 : 50)} جنيه</span>
+                <span className="text-primary">{finalTotal} جنيه</span>
               </div>
             </div>
           </div>
-          
-          <button 
+
+          <button
             onClick={handleOrder}
-            disabled={orderLoading || (!user && (!guestInfo.name || !guestInfo.phone))}
+            disabled={
+              orderLoading || (!user && (!guestInfo.name || !guestInfo.phone))
+            }
             className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
           >
             {orderLoading ? (
@@ -261,18 +262,16 @@ ${itemsList}
                 جاري إرسال الطلب...
               </>
             ) : (
-              <>
-                إتمام الطلب عبر واتساب
-              </>
+              <>إتمام الطلب عبر واتساب</>
             )}
           </button>
-          
+
           {!user && (!guestInfo.name || !guestInfo.phone) && (
             <p className="text-xs text-danger text-center mt-2">
               يرجى إدخال الاسم ورقم الهاتف
             </p>
           )}
-          
+
           <div className="flex items-center justify-center gap-2 mt-4 text-xs text-text-muted">
             <span>توصيل مجاني للطلبات فوق 500 جنيه</span>
           </div>

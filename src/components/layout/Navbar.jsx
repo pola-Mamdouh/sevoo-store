@@ -1,15 +1,17 @@
 // src/components/layout/Navbar.jsx
 import { Link } from "react-router-dom";
 import { useCart } from "../../store/CartContext";
+import { useOrders } from "../../store/OrdersContext";
 import { useUser } from "../../store/UserContext";
-import { ShoppingCart, User, LogOut, Search } from 'lucide-react';
+import { ShoppingCart, User, LogOut, Search, Package } from 'lucide-react';
 import { useState } from 'react';
 import Button from "../ui/Button";
 import { logoutUser } from '../../firebase/authService';
 
 const Navbar = () => {
   const { cartItems } = useCart();
-  const { user, loading } = useUser(); // 👈 استخدم loading
+  const { orders } = useOrders();
+  const { user, loading } = useUser();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -46,9 +48,9 @@ const Navbar = () => {
             </Link>
           </div>
 
-          {/* الجانب الأيمن - أيقونات المستخدم والسلة */}
+          {/* الجانب الأيمن - أيقونات */}
           <div className="flex justify-end items-center gap-1">
-            {loading ? ( // 👈 أثناء التحميل، اعرض أيقونة محايدة
+            {loading ? (
               <div className="w-8 h-8 flex items-center justify-center">
                 <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
               </div>
@@ -75,11 +77,24 @@ const Navbar = () => {
               </Link>
             )}
 
+            {/* أيقونة الطلبات */}
+            <Link to="/my-orders">
+              <Button variant="ghost" size="sm" className="!p-2 relative" title="طلباتي">
+                <Package className="w-5 h-5" />
+                {orders.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1">
+                    {orders.length}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            {/* أيقونة السلة */}
             <Link to="/cart">
-              <Button variant="ghost" size="sm" className="!p-2 relative">
+              <Button variant="ghost" size="sm" className="!p-2 relative" title="سلة التسوق">
                 <ShoppingCart className="w-5 h-5" />
                 {cartItems.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1 animate-in zoom-in">
+                  <span className="absolute -top-1 -right-1 bg-accent text-white text-xs rounded-full min-w-[1.25rem] h-5 flex items-center justify-center px-1">
                     {cartItems.length}
                   </span>
                 )}

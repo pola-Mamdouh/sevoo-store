@@ -10,6 +10,7 @@ const HomePage = lazy(() => import('./pages/Home'))
 const ProductDetailsPage = lazy(() => import('./pages/ProductDetails'))
 const CartPage = lazy(() => import('./pages/CartPage'))
 const AuthPage = lazy(() => import('./pages/AuthPage'))
+const MyOrdersPage = lazy(() => import('./pages/MyOrders'))
 const NotFoundPage = lazy(() => import('./pages/NotFound'))
 
 // Admin Pages
@@ -38,6 +39,7 @@ function App() {
             <Route path="product/:productId" element={<ProductDetailsPage />} />
             <Route path="cart" element={<CartPage />} />
             <Route path="auth" element={<AuthPage />} />
+            <Route path="my-orders" element={<MyOrdersPage />} /> 
             <Route path="*" element={<NotFoundPage />} />
           </Route>
 

@@ -25,6 +25,7 @@ const AdminLayout = () => {
     { path: '/admin/products/new', icon: PlusCircle, label: 'إضافة منتج' },
     { path: '/admin/orders', icon: ShoppingBag, label: 'الطلبات' }, // 👈 أضف هذا السطر
     { path: '/admin/settings', icon: Settings, label: 'الإعدادات' },
+
   ];
 
   const isActive = (path, end = false) => {
