@@ -1,38 +1,86 @@
-// store/OrdersContext.jsx
-import { createContext, useContext, useReducer, useEffect } from 'react';
+// src/store/OrdersContext.jsx
+import { createContext, useContext, useEffect, useState } from 'react';
+import { db } from '../firebase/config';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  addDoc, 
+  updateDoc, 
+  doc 
+} from 'firebase/firestore';
+import { useUser } from './UserContext';
+import { useAdmin } from './AdminContext'; // سنحتاج إلى useAdmin
 
 const OrdersContext = createContext();
 
-const initialState = {
-  orders: JSON.parse(localStorage.getItem('orders')) || []
-};
-
-const ordersReducer = (state, action) => {
-  switch (action.type) {
-    case 'ADD_ORDER':
-      const newOrders = [action.payload, ...state.orders];
-      localStorage.setItem('orders', JSON.stringify(newOrders));
-      return { ...state, orders: newOrders };
-
-    case 'UPDATE_ORDER_STATUS':
-      const updatedOrders = state.orders.map(order =>
-        order.id === action.payload.orderId
-          ? { ...order, status: action.payload.status }
-          : order
-      );
-      localStorage.setItem('orders', JSON.stringify(updatedOrders));
-      return { ...state, orders: updatedOrders };
-
-    default:
-      return state;
-  }
-};
-
 export const OrdersProvider = ({ children }) => {
-  const [state, dispatch] = useReducer(ordersReducer, initialState);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { user } = useUser();
+  const { adminState } = useAdmin(); // adminState.isAdmin يحدد إذا كان المستخدم أدمن
+
+  useEffect(() => {
+    let q;
+    if (adminState?.isAdmin) {
+      // إذا كان أدمن، يرَى جميع الطلبات
+      q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
+    } else if (user) {
+      // إذا كان مستخدم عادي، يرى طلباته فقط
+      q = query(collection(db, 'orders'), where('userId', '==', user.uid));
+    } else {
+      // زائر (بدون حساب) – يمكن إما إخفاء الطلبات أو استخدام guestId
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const ordersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setOrders(ordersData);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [user, adminState?.isAdmin]);
+
+  // دالة لإضافة طلب جديد
+  const addOrder = async (orderData) => {
+    try {
+      const docRef = await addDoc(collection(db, 'orders'), {
+        ...orderData,
+        userId: user?.uid || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      return docRef.id;
+    } catch (error) {
+      console.error('Error adding order:', error);
+      throw error;
+    }
+  };
+
+  // دالة لتحديث حالة الطلب
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      const orderRef = doc(db, 'orders', orderId);
+      await updateDoc(orderRef, {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      throw error;
+    }
+  };
 
   return (
-    <OrdersContext.Provider value={{ orders: state.orders, ordersDispatch: dispatch }}>
+    <OrdersContext.Provider value={{ orders, loading, addOrder, updateOrderStatus }}>
       {children}
     </OrdersContext.Provider>
   );

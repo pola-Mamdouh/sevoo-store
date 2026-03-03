@@ -126,16 +126,16 @@ const AdminProducts = () => {
       try {
         await actions.deleteProduct(productId);
         setPopup({
-          type: 'success',
-          title: 'تم الحذف',
-          message: `تم حذف "${productName}" بنجاح`
+          type: "success",
+          title: "تم الحذف",
+          message: `تم حذف "${productName}" بنجاح`,
         });
       } catch (error) {
         console.error("Error deleting product:", error);
         setPopup({
-          type: 'error',
-          title: 'خطأ',
-          message: 'حدث خطأ أثناء حذف المنتج'
+          type: "error",
+          title: "خطأ",
+          message: "حدث خطأ أثناء حذف المنتج",
         });
       } finally {
         setDeletingId(null);
@@ -152,16 +152,16 @@ const AdminProducts = () => {
       }
       setShowDeleteAllModal(false);
       setPopup({
-        type: 'success',
-        title: 'تم الحذف',
-        message: `تم حذف ${allProducts.length} منتج بنجاح`
+        type: "success",
+        title: "تم الحذف",
+        message: `تم حذف ${allProducts.length} منتج بنجاح`,
       });
     } catch (error) {
       console.error("Error deleting all products:", error);
       setPopup({
-        type: 'error',
-        title: 'خطأ',
-        message: 'حدث خطأ أثناء حذف المنتجات'
+        type: "error",
+        title: "خطأ",
+        message: "حدث خطأ أثناء حذف المنتجات",
       });
     } finally {
       setIsDeletingAll(false);
@@ -264,7 +264,7 @@ const AdminProducts = () => {
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <img
-                        src={product.image}
+                        src={product.images?.[0] || product.image}
                         alt={product.name}
                         className="w-12 h-12 object-cover rounded-lg bg-gray-100"
                       />
@@ -376,7 +376,10 @@ const AdminProducts = () => {
               هل أنت متأكد من حذف جميع المنتجات؟
             </p>
             <p className="text-text-muted text-sm mb-6">
-              عدد المنتجات: <span className="font-bold text-danger">{allProducts.length}</span>
+              عدد المنتجات:{" "}
+              <span className="font-bold text-danger">
+                {allProducts.length}
+              </span>
             </p>
 
             <div className="flex gap-3">

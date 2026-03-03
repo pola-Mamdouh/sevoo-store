@@ -1,84 +1,141 @@
+// pages/admin/AdminProductForm.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAdmin } from '../../store/AdminContext';
-import { Save, X, Image as ImageIcon } from 'lucide-react';
+import { Save, X, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 import Popup from '../../components/ui/Popup';
+
+// قائمة الألوان الشائعة للاختيار السريع
+const COMMON_COLORS = [
+  { name: 'أسود', code: '#000000' },
+  { name: 'أبيض', code: '#FFFFFF' },
+  { name: 'رمادي', code: '#808080' },
+  { name: 'أحمر', code: '#FF0000' },
+  { name: 'أزرق', code: '#0000FF' },
+  { name: 'أخضر', code: '#008000' },
+  { name: 'أصفر', code: '#FFFF00' },
+  { name: 'بنفسجي', code: '#800080' },
+  { name: 'وردي', code: '#FFC0CB' },
+  { name: 'بني', code: '#8B4513' },
+];
 
 const AdminProductForm = () => {
   const navigate = useNavigate();
   const { productId } = useParams();
   const { adminState, actions } = useAdmin();
-  const products = adminState.products;
+  const { allProducts } = adminState;
   const isEditing = !!productId;
 
   const [formData, setFormData] = useState({
-    id: '',
     name: '',
     price: '',
     description: '',
     category: '',
-    image: '',
     stock: '',
     isNew: false,
-    discount: ''
+    discount: '',
+    colors: [] // مصفوفة من الكائنات { name, code, images: [] }
   });
 
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false); // 👈 use local state only
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [popup, setPopup] = useState(null);
-  const [imageError, setImageError] = useState(false);
+  const [imageErrors, setImageErrors] = useState({}); // لتتبع أخطاء الصور
 
-  // Load product data if editing
+  // تحميل بيانات المنتج عند التعديل
   useEffect(() => {
     if (isEditing) {
-      const product = products.find(p => p.id === productId);
+      const product = allProducts.find(p => p.id === productId);
       if (product) {
+        // تحويل البيانات القديمة إذا كانت موجودة
+        let colors = product.colors || [];
+        // إذا كان المنتج قديماً ولا يحتوي على الألوان بالهيكل الجديد
+        if (colors.length === 0 && product.image) {
+          // إنشاء لون افتراضي
+          colors = [{ name: 'افتراضي', code: '#CCCCCC', images: product.images || [product.image] }];
+        }
         setFormData({
-          id: product.id,
-          name: product.name,
-          price: product.price,
+          name: product.name || '',
+          price: product.price || '',
           description: product.description || '',
           category: product.category || '',
-          image: product.image,
           stock: product.stock || '',
           isNew: product.isNew || false,
-          discount: product.discount || ''
+          discount: product.discount || '',
+          colors: colors
         });
       }
     }
-  }, [isEditing, productId, products]);
+  }, [isEditing, productId, allProducts]);
 
-  // Validation
+  // التحقق من الصحة
   const validateForm = () => {
     const newErrors = {};
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'اسم المنتج مطلوب';
+    if (!formData.name.trim()) newErrors.name = 'اسم المنتج مطلوب';
+    if (!formData.price) newErrors.price = 'سعر المنتج مطلوب';
+    else if (isNaN(formData.price) || formData.price <= 0) newErrors.price = 'يرجى إدخال سعر صحيح';
+    if (!formData.category.trim()) newErrors.category = 'الفئة مطلوبة';
+    if (formData.colors.length === 0) newErrors.colors = 'يجب إضافة لون واحد على الأقل';
+    else {
+      formData.colors.forEach((color, idx) => {
+        if (!color.name.trim()) {
+          newErrors[`color_name_${idx}`] = 'اسم اللون مطلوب';
+        }
+        if (!color.code) {
+          newErrors[`color_code_${idx}`] = 'كود اللون مطلوب';
+        }
+        if (color.images.length === 0) {
+          newErrors[`color_images_${idx}`] = `يجب إضافة صورة واحدة على الأقل للون ${color.name || idx + 1}`;
+        }
+      });
     }
-
-    if (!formData.price) {
-      newErrors.price = 'سعر المنتج مطلوب';
-    } else if (isNaN(formData.price) || formData.price <= 0) {
-      newErrors.price = 'يرجى إدخال سعر صحيح';
-    }
-
-    if (!formData.category.trim()) {
-      newErrors.category = 'الفئة مطلوبة';
-    }
-
-    if (!formData.image.trim()) {
-      newErrors.image = 'صورة المنتج مطلوبة';
-    } else if (!formData.image.match(/^https?:\/\/.+/)) {
-      newErrors.image = 'يرجى إدخال رابط صورة صحيح';
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // دوال إدارة الألوان
+  const addColor = (colorTemplate = null) => {
+    const newColor = colorTemplate || { name: '', code: '#000000', images: [] };
+    setFormData({
+      ...formData,
+      colors: [...formData.colors, newColor]
+    });
+  };
+
+  const updateColor = (index, field, value) => {
+    const updatedColors = [...formData.colors];
+    updatedColors[index][field] = value;
+    setFormData({ ...formData, colors: updatedColors });
+  };
+
+  const removeColor = (index) => {
+    setFormData({
+      ...formData,
+      colors: formData.colors.filter((_, i) => i !== index)
+    });
+  };
+
+  // دوال إدارة الصور داخل اللون
+  const addImageToColor = (colorIndex) => {
+    const updatedColors = [...formData.colors];
+    updatedColors[colorIndex].images.push('');
+    setFormData({ ...formData, colors: updatedColors });
+  };
+
+  const updateColorImage = (colorIndex, imageIndex, value) => {
+    const updatedColors = [...formData.colors];
+    updatedColors[colorIndex].images[imageIndex] = value;
+    setFormData({ ...formData, colors: updatedColors });
+  };
+
+  const removeColorImage = (colorIndex, imageIndex) => {
+    const updatedColors = [...formData.colors];
+    updatedColors[colorIndex].images = updatedColors[colorIndex].images.filter((_, i) => i !== imageIndex);
+    setFormData({ ...formData, colors: updatedColors });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     if (!validateForm()) return;
 
     const productData = {
@@ -86,51 +143,32 @@ const AdminProductForm = () => {
       price: Number(formData.price),
       description: formData.description,
       category: formData.category,
-      image: formData.image,
       stock: formData.stock ? Number(formData.stock) : 0,
       isNew: formData.isNew,
       discount: formData.discount ? Number(formData.discount) : 0,
+      colors: formData.colors
     };
 
-    setIsSubmitting(true); // 👈 start local loading
-
+    setIsSubmitting(true);
     try {
       if (isEditing) {
         await actions.updateProduct(productId, productData);
-        setPopup({
-          type: 'success',
-          title: 'تم التعديل',
-          message: 'تم تعديل المنتج بنجاح'
-        });
+        setPopup({ type: 'success', title: 'تم التعديل', message: 'تم تعديل المنتج بنجاح' });
       } else {
         await actions.addProduct(productData);
-        setPopup({
-          type: 'success',
-          title: 'تم الإضافة',
-          message: 'تم إضافة المنتج بنجاح'
-        });
+        setPopup({ type: 'success', title: 'تم الإضافة', message: 'تم إضافة المنتج بنجاح' });
       }
-      
-      // Wait a bit to show success message then navigate
-      setTimeout(() => {
-        navigate('/admin/products');
-      }, 1500);
-      
+      setTimeout(() => navigate('/admin/products'), 1500);
     } catch (error) {
-      console.error('Error saving product:', error);
-      setPopup({
-        type: 'error',
-        title: 'خطأ',
-        message: 'حدث خطأ أثناء حفظ المنتج'
-      });
-      setIsSubmitting(false); // 👈 stop loading on error
+      setPopup({ type: 'error', title: 'خطأ', message: 'حدث خطأ أثناء حفظ المنتج' });
+      setIsSubmitting(false);
     }
   };
 
   const suggestedCategories = ['تيشيرتات', 'قمصان', 'بناطيل', 'هوديز', 'جاكيتات'];
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-heading font-bold text-text-primary">
@@ -145,12 +183,11 @@ const AdminProductForm = () => {
         </button>
       </div>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* المعلومات الأساسية */}
         <div className="bg-surface rounded-xl shadow-sm p-6 space-y-6">
-          {/* Basic Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Product Name */}
+            {/* الاسم */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
                 اسم المنتج <span className="text-danger">*</span>
@@ -167,7 +204,7 @@ const AdminProductForm = () => {
               {errors.name && <p className="text-danger text-sm mt-1">{errors.name}</p>}
             </div>
 
-            {/* Price */}
+            {/* السعر */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
                 السعر <span className="text-danger">*</span>
@@ -184,7 +221,7 @@ const AdminProductForm = () => {
               {errors.price && <p className="text-danger text-sm mt-1">{errors.price}</p>}
             </div>
 
-            {/* Category */}
+            {/* الفئة */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
                 الفئة <span className="text-danger">*</span>
@@ -200,18 +237,14 @@ const AdminProductForm = () => {
                 disabled={isSubmitting}
               />
               <datalist id="categories">
-                {suggestedCategories.map(cat => (
-                  <option key={cat} value={cat} />
-                ))}
+                {suggestedCategories.map(cat => <option key={cat} value={cat} />)}
               </datalist>
               {errors.category && <p className="text-danger text-sm mt-1">{errors.category}</p>}
             </div>
 
-            {/* Stock */}
+            {/* المخزون */}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-2">
-                المخزون
-              </label>
+              <label className="block text-sm font-medium text-text-primary mb-2">المخزون</label>
               <input
                 type="number"
                 value={formData.stock}
@@ -223,11 +256,9 @@ const AdminProductForm = () => {
             </div>
           </div>
 
-          {/* Description */}
+          {/* الوصف */}
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              الوصف
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-2">الوصف</label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -237,46 +268,166 @@ const AdminProductForm = () => {
               disabled={isSubmitting}
             />
           </div>
+        </div>
 
-          {/* Image */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-2">
-              صورة المنتج <span className="text-danger">*</span>
-            </label>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="url"
-                  value={formData.image}
-                  onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
-                    ${errors.image ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
-                  placeholder="https://example.com/image.jpg"
-                  disabled={isSubmitting}
-                />
-                {errors.image && <p className="text-danger text-sm mt-1">{errors.image}</p>}
+        {/* الألوان والصور */}
+        <div className="bg-surface rounded-xl shadow-sm p-6 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-text-primary">الألوان والصور</h2>
+            <button
+              type="button"
+              onClick={() => addColor()}
+              className="text-accent hover:text-accent/80 flex items-center gap-1 text-sm"
+            >
+              <Plus className="w-4 h-4" />
+              إضافة لون جديد
+            </button>
+          </div>
+
+          {errors.colors && <p className="text-danger text-sm">{errors.colors}</p>}
+
+          {/* قائمة الألوان الشائعة للإضافة السريعة */}
+          <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg">
+            <span className="text-sm text-text-muted">ألوان شائعة:</span>
+            {COMMON_COLORS.map((color) => (
+              <button
+                key={color.code}
+                type="button"
+                onClick={() => addColor({ name: color.name, code: color.code, images: [] })}
+                className="w-8 h-8 rounded-full border-2 border-gray-200 hover:border-accent transition-all"
+                style={{ backgroundColor: color.code }}
+                title={color.name}
+              />
+            ))}
+          </div>
+
+          {/* عرض الألوان المضافة */}
+          {formData.colors.map((color, colorIndex) => (
+            <div key={colorIndex} className="border border-gray-200 rounded-lg p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium">اللون {colorIndex + 1}</h3>
+                <button
+                  type="button"
+                  onClick={() => removeColor(colorIndex)}
+                  className="text-danger hover:text-danger/80"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
-              {/* Image Preview */}
-              <div className="w-full md:w-48 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
-                {formData.image && !imageError ? (
-                  <img
-                    src={formData.image}
-                    alt="Preview"
-                    className="w-full h-full object-contain"
-                    onError={() => setImageError(true)}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* اسم اللون */}
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">اسم اللون</label>
+                  <input
+                    type="text"
+                    value={color.name}
+                    onChange={(e) => updateColor(colorIndex, 'name', e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
+                      ${errors[`color_name_${colorIndex}`] ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
+                    placeholder="مثل: أحمر"
+                    disabled={isSubmitting}
                   />
-                ) : (
-                  <div className="text-center text-text-muted">
-                    <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">معاينة الصورة</p>
+                  {errors[`color_name_${colorIndex}`] && (
+                    <p className="text-danger text-xs mt-1">{errors[`color_name_${colorIndex}`]}</p>
+                  )}
+                </div>
+
+                {/* كود اللون */}
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">كود اللون</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="color"
+                      value={color.code}
+                      onChange={(e) => updateColor(colorIndex, 'code', e.target.value)}
+                      className="w-10 h-10 p-1 border border-gray-200 rounded-lg cursor-pointer"
+                      disabled={isSubmitting}
+                    />
+                    <input
+                      type="text"
+                      value={color.code}
+                      onChange={(e) => updateColor(colorIndex, 'code', e.target.value)}
+                      className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
+                        ${errors[`color_code_${colorIndex}`] ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
+                      placeholder="#000000"
+                      disabled={isSubmitting}
+                    />
                   </div>
+                  {errors[`color_code_${colorIndex}`] && (
+                    <p className="text-danger text-xs mt-1">{errors[`color_code_${colorIndex}`]}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* صور اللون */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-text-primary">صور هذا اللون</label>
+                  <button
+                    type="button"
+                    onClick={() => addImageToColor(colorIndex)}
+                    className="text-accent hover:text-accent/80 flex items-center gap-1 text-xs"
+                  >
+                    <Plus className="w-3 h-3" />
+                    إضافة صورة
+                  </button>
+                </div>
+
+                {color.images.length === 0 ? (
+                  <p className="text-text-muted text-sm py-2">لا توجد صور لهذا اللون. أضف صورة واحدة على الأقل.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {color.images.map((url, imgIndex) => (
+                      <div key={imgIndex} className="flex items-center gap-2">
+                        <div className="flex-1 relative">
+                          <input
+                            type="url"
+                            value={url}
+                            onChange={(e) => updateColorImage(colorIndex, imgIndex, e.target.value)}
+                            className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-accent/20 outline-none transition-colors
+                              ${errors[`color_images_${colorIndex}`] ? 'border-danger' : 'border-gray-200 focus:border-accent'}`}
+                            placeholder="https://example.com/image.jpg"
+                            disabled={isSubmitting}
+                          />
+                        </div>
+                        {/* معاينة الصورة */}
+                        <div className="w-12 h-12 bg-gray-100 rounded border border-gray-200 overflow-hidden flex-shrink-0">
+                          {url && !imageErrors[`${colorIndex}-${imgIndex}`] ? (
+                            <img
+                              src={url}
+                              alt={`معاينة`}
+                              className="w-full h-full object-cover"
+                              onError={() => setImageErrors(prev => ({ ...prev, [`${colorIndex}-${imgIndex}`]: true }))}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-text-muted">
+                              <ImageIcon className="w-4 h-4 opacity-50" />
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeColorImage(colorIndex, imgIndex)}
+                          className="p-2 text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                          disabled={isSubmitting}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors[`color_images_${colorIndex}`] && (
+                  <p className="text-danger text-xs mt-1">{errors[`color_images_${colorIndex}`]}</p>
                 )}
               </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Options */}
+        {/* خيارات إضافية */}
+        <div className="bg-surface rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-6">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -290,9 +441,7 @@ const AdminProductForm = () => {
             </label>
 
             <div className="w-32">
-              <label className="block text-sm text-text-primary mb-1">
-                نسبة الخصم (%)
-              </label>
+              <label className="block text-sm text-text-primary mb-1">نسبة الخصم (%)</label>
               <input
                 type="number"
                 value={formData.discount}
@@ -306,7 +455,7 @@ const AdminProductForm = () => {
           </div>
         </div>
 
-        {/* Actions */}
+        {/* أزرار الإجراءات */}
         <div className="flex items-center justify-end gap-3">
           <button
             type="button"
@@ -336,7 +485,6 @@ const AdminProductForm = () => {
         </div>
       </form>
 
-      {/* Popup Notification */}
       {popup && (
         <Popup
           type={popup.type}

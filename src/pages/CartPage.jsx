@@ -3,16 +3,16 @@ import { useCart } from "../store/CartContext";
 import { useUser } from "../store/UserContext";
 import { useOrders } from "../store/OrdersContext";
 import CartItem from "../components/cart/CartItem";
-import { Link, useNavigate } from "react-router-dom"; // 👈 إضافة useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import { User, Phone, MessageCircle } from "lucide-react";
 import { useState } from "react";
-import Popup from "../components/ui/Popup"; // تأكد من وجود هذا المكون
+import Popup from "../components/ui/Popup";
 
 const CartPage = () => {
   const { cartItems, totalPrice, dispatch } = useCart();
   const { user, loading: userLoading } = useUser();
-  const { ordersDispatch } = useOrders();
-  const navigate = useNavigate(); // 👈 إضافة
+  const { addOrder } = useOrders(); // ✅ استخدام addOrder
+  const navigate = useNavigate();
 
   const [orderLoading, setOrderLoading] = useState(false);
   const [popup, setPopup] = useState(null);
@@ -22,11 +22,9 @@ const CartPage = () => {
     message: "",
   });
 
-  // حساب الشحن
   const shipping = totalPrice > 500 ? 0 : 50;
   const finalTotal = totalPrice + shipping;
 
-  // إذا كان user في حالة تحميل
   if (userLoading) {
     return (
       <div className="flex justify-center items-center py-20">
@@ -36,7 +34,6 @@ const CartPage = () => {
   }
 
   const handleOrder = async () => {
-    // التحقق من البيانات الأساسية
     if (!user && (!guestInfo.name || !guestInfo.phone)) {
       setPopup({
         type: "error",
@@ -48,7 +45,6 @@ const CartPage = () => {
 
     setOrderLoading(true);
 
-    // تجهيز بيانات العميل
     const customer = user
       ? {
           name: user.displayName || "مستخدم",
@@ -61,9 +57,7 @@ const CartPage = () => {
           message: guestInfo.message,
         };
 
-    // تجهيز الطلب
     const newOrder = {
-      id: `ORD-${Date.now()}`,
       items: cartItems,
       subtotal: totalPrice,
       shipping,
@@ -71,9 +65,10 @@ const CartPage = () => {
       date: new Date().toISOString(),
       status: "قيد الانتظار",
       customer,
+      userId: user?.uid || null,
+      guestId: !user ? `guest_${Date.now()}` : null,
     };
 
-    // تجهيز رسالة واتساب
     const itemsList = cartItems
       .map(
         (item) =>
@@ -89,28 +84,31 @@ const CartPage = () => {
 
     const whatsappUrl = `https://wa.me/201140385268?text=${encodeURIComponent(message)}`;
 
-    // حفظ الطلب
-    ordersDispatch({ type: "ADD_ORDER", payload: newOrder });
+    try {
+      // ✅ حفظ الطلب في Firebase
+      await addOrder(newOrder);
 
-    // فتح واتساب في تاب جديد
-    window.open(whatsappUrl, "_blank");
+      window.open(whatsappUrl, "_blank");
+      dispatch({ type: "CLEAR_CART" });
 
-    // تفريغ السلة
-    dispatch({ type: "CLEAR_CART" });
+      setPopup({
+        type: "success",
+        title: "تم إرسال الطلب",
+        message: "سيتم التواصل معك قريباً عبر واتساب",
+      });
 
-    setOrderLoading(false);
-
-    // عرض رسالة نجاح
-    setPopup({
-      type: "success",
-      title: "تم إرسال الطلب",
-      message: "سيتم التواصل معك قريباً عبر واتساب",
-    });
-
-    // التوجيه لصفحة الطلبات بعد 2 ثانية
-    setTimeout(() => {
-      navigate("/my-orders");
-    }, 2000);
+      setTimeout(() => {
+        navigate("/my-orders");
+      }, 2000);
+    } catch (error) {
+      setPopup({
+        type: "error",
+        title: "خطأ",
+        message: "حدث خطأ أثناء حفظ الطلب",
+      });
+    } finally {
+      setOrderLoading(false);
+    }
   };
 
   if (cartItems.length === 0) {
@@ -138,7 +136,6 @@ const CartPage = () => {
       </div>
 
       <div className="space-y-4">
-        {/* معلومات المستخدم - لو مسجل دخول */}
         {user && (
           <div className="bg-surface rounded-(--radius-card) p-4 border border-gray-100">
             <div className="flex items-center gap-3">
@@ -153,23 +150,18 @@ const CartPage = () => {
           </div>
         )}
 
-        {/* نموذج الزائر - لو مش مسجل دخول */}
         {!user && (
           <div className="bg-surface rounded-(--radius-card) p-4 border border-gray-100 space-y-3">
             <h3 className="font-medium mb-2">معلومات التوصيل</h3>
 
             <div>
-              <label className="block text-xs text-text-muted mb-1">
-                الاسم
-              </label>
+              <label className="block text-xs text-text-muted mb-1">الاسم</label>
               <div className="relative">
                 <User className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
                 <input
                   type="text"
                   value={guestInfo.name}
-                  onChange={(e) =>
-                    setGuestInfo({ ...guestInfo, name: e.target.value })
-                  }
+                  onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })}
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm"
                   placeholder="محمد أحمد"
                   disabled={orderLoading}
@@ -178,17 +170,13 @@ const CartPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs text-text-muted mb-1">
-                رقم الهاتف
-              </label>
+              <label className="block text-xs text-text-muted mb-1">رقم الهاتف</label>
               <div className="relative">
                 <Phone className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted w-4 h-4" />
                 <input
                   type="tel"
                   value={guestInfo.phone}
-                  onChange={(e) =>
-                    setGuestInfo({ ...guestInfo, phone: e.target.value })
-                  }
+                  onChange={(e) => setGuestInfo({ ...guestInfo, phone: e.target.value })}
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm"
                   placeholder="01234567890"
                   disabled={orderLoading}
@@ -197,16 +185,12 @@ const CartPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs text-text-muted mb-1">
-                رسالة (اختياري)
-              </label>
+              <label className="block text-xs text-text-muted mb-1">رسالة (اختياري)</label>
               <div className="relative">
                 <MessageCircle className="absolute right-3 top-3 text-text-muted w-4 h-4" />
                 <textarea
                   value={guestInfo.message}
-                  onChange={(e) =>
-                    setGuestInfo({ ...guestInfo, message: e.target.value })
-                  }
+                  onChange={(e) => setGuestInfo({ ...guestInfo, message: e.target.value })}
                   className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none text-sm resize-none"
                   placeholder="أي ملاحظات للطلب..."
                   rows="2"
@@ -215,20 +199,14 @@ const CartPage = () => {
               </div>
             </div>
 
-            <Link
-              to="/auth"
-              className="text-xs text-accent hover:underline block text-center mt-2"
-            >
+            <Link to="/auth" className="text-xs text-accent hover:underline block text-center mt-2">
               أو سجل دخول لحفظ بياناتك
             </Link>
           </div>
         )}
 
-        {/* ملخص الطلب وزر الإتمام */}
         <div className="bg-surface rounded-(--radius-card) p-6 shadow-(--shadow-card) border border-gray-100 sticky top-24">
-          <h3 className="font-heading font-semibold text-lg mb-4">
-            ملخص الطلب
-          </h3>
+          <h3 className="font-heading font-semibold text-lg mb-4">ملخص الطلب</h3>
 
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
@@ -237,9 +215,7 @@ const CartPage = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-text-muted">الشحن</span>
-              <span className="font-medium">
-                {shipping === 0 ? "مجاني" : `${shipping} جنيه`}
-              </span>
+              <span className="font-medium">{shipping === 0 ? "مجاني" : `${shipping} جنيه`}</span>
             </div>
             <div className="border-t border-gray-100 pt-3 mt-3">
               <div className="flex justify-between font-bold text-lg">
@@ -251,9 +227,7 @@ const CartPage = () => {
 
           <button
             onClick={handleOrder}
-            disabled={
-              orderLoading || (!user && (!guestInfo.name || !guestInfo.phone))
-            }
+            disabled={orderLoading || (!user && (!guestInfo.name || !guestInfo.phone))}
             className="w-full bg-primary text-white py-3 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-6"
           >
             {orderLoading ? (
@@ -267,9 +241,7 @@ const CartPage = () => {
           </button>
 
           {!user && (!guestInfo.name || !guestInfo.phone) && (
-            <p className="text-xs text-danger text-center mt-2">
-              يرجى إدخال الاسم ورقم الهاتف
-            </p>
+            <p className="text-xs text-danger text-center mt-2">يرجى إدخال الاسم ورقم الهاتف</p>
           )}
 
           <div className="flex items-center justify-center gap-2 mt-4 text-xs text-text-muted">
@@ -278,7 +250,6 @@ const CartPage = () => {
         </div>
       </div>
 
-      {/* Popup */}
       {popup && (
         <Popup
           type={popup.type}

@@ -1,6 +1,7 @@
+// components/product/ProductCard.jsx
 import { Link } from "react-router-dom";
 import { useCart } from "../../store/CartContext";
-import { ShoppingCart, Eye, Plus, Minus, Trash2 } from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const ProductCard = ({ product }) => {
@@ -8,14 +9,18 @@ const ProductCard = ({ product }) => {
   const [quantity, setQuantity] = useState(0);
   const [imageError, setImageError] = useState(false);
 
+  // استخدام أول صورة أو الصورة القديمة
+const imageUrl = product.colors?.[0]?.images?.[0] || product.image;
+
   useEffect(() => {
     const cartItem = cartItems.find((item) => item.id === product.id);
     setQuantity(cartItem?.quantity || 0);
   }, [cartItems, product.id]);
 
-  const handleAddToCart = () => {
-    dispatch({ type: "ADD_TO_CART", payload: product });
-  };
+ const handleAddToCart = () => {
+  const defaultColor = product.colors?.[0] || null;
+  dispatch({ type: "ADD_TO_CART", payload: { ...product, selectedColor: defaultColor } });
+};
 
   const handleIncrease = (e) => {
     e.preventDefault();
@@ -33,9 +38,7 @@ const ProductCard = ({ product }) => {
     }
   };
 
-  const handleImageError = () => {
-    setImageError(true);
-  };
+  const handleImageError = () => setImageError(true);
 
   return (
     <div className="group bg-surface rounded-(--radius-card) shadow-(--shadow-card) hover:shadow-(--shadow-card-hover) transition-all duration-300 overflow-hidden">
@@ -45,7 +48,7 @@ const ProductCard = ({ product }) => {
       >
         {!imageError ? (
           <img
-            src={product.image}
+            src={imageUrl}
             alt={product.name}
             onError={handleImageError}
             className="w-full h-full object-contain p-4 group-hover:scale-105 transition-transform duration-500"
@@ -57,7 +60,6 @@ const ProductCard = ({ product }) => {
             </svg>
           </div>
         )}
-
         {product.isNew && (
           <span className="absolute top-3 right-3 bg-success/10 text-success px-2 py-1 rounded-(--radius-badge) text-xs font-semibold border border-success/20 z-10">
             جديد
@@ -98,11 +100,9 @@ const ProductCard = ({ product }) => {
                 <Minus className="w-4 h-4" />
               )}
             </button>
-
             <span className="w-12 text-center font-semibold text-primary">
               {quantity}
             </span>
-
             <button
               onClick={handleIncrease}
               className="flex-1 bg-primary text-white py-2.5 rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-1 text-sm font-medium"

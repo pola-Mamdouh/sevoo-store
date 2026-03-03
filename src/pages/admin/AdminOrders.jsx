@@ -4,13 +4,13 @@ import { useState } from 'react';
 import { Search, Package, Calendar, User, Phone, MessageCircle } from 'lucide-react';
 
 const AdminOrders = () => {
-  const { orders, ordersDispatch } = useOrders();
+  const { orders, loading, updateOrderStatus } = useOrders();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer?.phone?.includes(searchTerm);
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
@@ -25,12 +25,21 @@ const AdminOrders = () => {
     'ملغي': 'bg-danger/10 text-danger border-danger/20'
   };
 
-  const handleStatusChange = (orderId, newStatus) => {
-    ordersDispatch({
-      type: 'UPDATE_ORDER_STATUS',
-      payload: { orderId, status: newStatus }
-    });
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+    } catch (error) {
+      alert('حدث خطأ أثناء تحديث الحالة');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -95,14 +104,14 @@ const AdminOrders = () => {
                   </div>
                   <div>
                     <p className="text-sm text-text-muted">رقم الطلب</p>
-                    <p className="font-medium text-text-primary">{order.id}</p>
+                    <p className="font-medium text-text-primary">{order.id.slice(0, 8)}...</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-text-muted" />
                     <span className="text-sm text-text-muted">
-                      {new Date(order.date).toLocaleDateString('ar-EG')}
+                      {new Date(order.date || order.createdAt).toLocaleDateString('ar-EG')}
                     </span>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${statusColors[order.status] || 'bg-gray-100 text-gray-600'}`}>
@@ -144,12 +153,24 @@ const AdminOrders = () => {
                   {order.items.map((item) => (
                     <div key={item.id} className="flex items-center gap-3">
                       <img
-                        src={item.image}
+                        src={item.selectedColor?.images?.[0] || item.images?.[0] || item.image} 
                         alt={item.name}
                         className="w-12 h-12 object-cover rounded-lg bg-gray-100"
                       />
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
+                        {/* عرض اللون المحدد */}
+                        {item.selectedColor && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span 
+                              className="w-3 h-3 rounded-full border border-gray-200" 
+                              style={{ backgroundColor: item.selectedColor.code }}
+                            />
+                            <span className="text-xs text-text-muted">
+                              {item.selectedColor.name}
+                            </span>
+                          </div>
+                        )}
                         <p className="text-sm text-text-muted">
                           {item.quantity} × {item.price} جنيه
                         </p>
