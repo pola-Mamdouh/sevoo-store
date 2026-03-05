@@ -1,7 +1,16 @@
 // src/pages/admin/AdminOrders.jsx
 import { useOrders } from '../../store/OrdersContext';
 import { useState } from 'react';
-import { Search, Package, Calendar, User, Phone, MessageCircle } from 'lucide-react';
+import { 
+  Search, 
+  Package, 
+  Calendar, 
+  User, 
+  Phone, 
+  MessageCircle,
+  MapPin,
+  Navigation
+} from 'lucide-react';
 
 const AdminOrders = () => {
   const { orders, loading, updateOrderStatus } = useOrders();
@@ -12,7 +21,8 @@ const AdminOrders = () => {
     const matchesSearch = 
       order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customer?.phone?.includes(searchTerm);
+      order.customer?.phone?.includes(searchTerm) ||
+      order.customer?.address?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -56,7 +66,7 @@ const AdminOrders = () => {
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted w-5 h-5" />
             <input
               type="text"
-              placeholder="ابحث برقم الطلب أو اسم العميل..."
+              placeholder="ابحث برقم الطلب أو اسم العميل أو العنوان..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg focus:border-accent focus:ring-2 focus:ring-accent/20 outline-none"
@@ -138,13 +148,39 @@ const AdminOrders = () => {
                       <span>{order.customer.email}</span>
                     </div>
                   )}
-                  {order.customer?.message && (
+                  {order.customer?.city && (
                     <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-text-muted" />
-                      <span className="text-text-muted">{order.customer.message}</span>
+                      <span>المدينة: {order.customer.city}</span>
                     </div>
                   )}
                 </div>
+
+                {/* Address fields */}
+                {order.customer?.address && (
+                  <div className="flex items-center gap-2 text-sm mt-2">
+                    <MapPin className="w-4 h-4 text-text-muted flex-shrink-0" />
+                    <span className="text-text-primary">{order.customer.address}</span>
+                  </div>
+                )}
+                {order.customer?.locationLink && (
+                  <div className="flex items-center gap-2 text-sm mt-1">
+                    <Navigation className="w-4 h-4 text-text-muted flex-shrink-0" />
+                    <a 
+                      href={order.customer.locationLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-accent hover:underline break-all"
+                    >
+                      رابط الموقع
+                    </a>
+                  </div>
+                )}
+                {order.customer?.message && (
+                  <div className="flex items-start gap-2 text-sm mt-2">
+                    <MessageCircle className="w-4 h-4 text-text-muted flex-shrink-0 mt-0.5" />
+                    <span className="text-text-muted">{order.customer.message}</span>
+                  </div>
+                )}
               </div>
 
               {/* Order Items */}
@@ -159,7 +195,6 @@ const AdminOrders = () => {
                       />
                       <div className="flex-1">
                         <p className="font-medium">{item.name}</p>
-                        {/* عرض اللون المحدد */}
                         {item.selectedColor && (
                           <div className="flex items-center gap-1 mt-0.5">
                             <span 

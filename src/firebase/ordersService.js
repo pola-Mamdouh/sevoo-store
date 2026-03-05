@@ -8,16 +8,45 @@ import {
   doc,
   query,
   orderBy,
-  where
+  where,
+  getCountFromServer,
+  setDoc
 } from 'firebase/firestore';
 import { db } from './config';
 
 const ORDERS_COLLECTION = 'orders';
+const COUNTERS_COLLECTION = 'counters';
+
+// دالة للحصول على رقم الطلب التالي
+export const getNextOrderNumber = async () => {
+  try {
+    const counterRef = doc(db, COUNTERS_COLLECTION, 'orders');
+    const counterSnapshot = await getDocs(collection(db, COUNTERS_COLLECTION));
+    
+    let nextNumber = 1;
+    
+    if (counterSnapshot.empty) {
+      // أول مرة - أنشئ العداد
+      await setDoc(counterRef, { current: 1 });
+    } else {
+      // اقرأ القيمة الحالية وزيدها
+      const counterData = counterSnapshot.docs[0].data();
+      nextNumber = (counterData.current || 0) + 1;
+      await updateDoc(counterRef, { current: nextNumber });
+    }
+    
+    return nextNumber;
+  } catch (error) {
+    console.error('Error getting next order number:', error);
+    // Fallback: استخدم timestamp لو حصل خطأ
+    return parseInt(Date.now().toString().slice(-6));
+  }
+};
 
 // Fetch all orders
 export const fetchOrders = async () => {
   try {
-    const q = query(collection(db, ORDERS_COLLECTION), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, ORDERS_COLLECTION), orderBy('orderNumber', 'desc'));
     const snapshot = await getDocs(q);
     
     return snapshot.docs.map(doc => ({
@@ -36,7 +65,7 @@ export const fetchOrdersByStatus = async (status) => {
     const q = query(
       collection(db, ORDERS_COLLECTION), 
       where('status', '==', status),
-      orderBy('createdAt', 'desc')
+      orderBy('orderNumber', 'desc')
     );
     const snapshot = await getDocs(q);
     
@@ -50,22 +79,25 @@ export const fetchOrdersByStatus = async (status) => {
   }
 };
 
-// Add a new order
+// Add a new order with sequential number
 export const addOrder = async (orderData) => {
   try {
-    const docRef = await addDoc(collection(db, ORDERS_COLLECTION), {
+    // احصل على رقم الطلب التالي
+    const orderNumber = await getNextOrderNumber();
+    
+    const orderWithNumber = {
       ...orderData,
-      status: 'pending', // pending, processing, shipped, delivered, cancelled
+      orderNumber,
+      status: 'قيد الانتظار',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
-    });
+    };
+    
+    const docRef = await addDoc(collection(db, ORDERS_COLLECTION), orderWithNumber);
     
     return { 
       id: docRef.id, 
-      ...orderData,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      ...orderWithNumber
     };
   } catch (error) {
     console.error('Error adding order:', error);
@@ -118,7 +150,7 @@ export const fetchOrdersByDateRange = async (startDate, endDate) => {
       collection(db, ORDERS_COLLECTION),
       where('createdAt', '>=', startDate),
       where('createdAt', '<=', endDate),
-      orderBy('createdAt', 'desc')
+      orderBy('orderNumber', 'desc')
     );
     const snapshot = await getDocs(q);
     

@@ -1,7 +1,7 @@
 // pages/MyOrders.jsx
 import { useOrders } from "../store/OrdersContext";
 import { Link } from "react-router-dom";
-import { Package, Calendar, Clock, ChevronRight } from "lucide-react";
+import { Package, Calendar, Clock, ChevronRight, MapPin, Navigation, Phone, User } from "lucide-react";
 
 const statusColors = {
   "قيد الانتظار": "bg-warning/10 text-warning border-warning/20",
@@ -73,7 +73,7 @@ const MyOrders = () => {
                   </div>
                   <div>
                     <p className="text-sm text-text-muted">رقم الطلب</p>
-                    <p className="font-medium text-text-primary">{order.id}</p>
+                    <p className="font-medium text-text-primary">{order.orderNumber ? `#${order.orderNumber}` : order.id.slice(0, 8)}</p>
                   </div>
                 </div>
 
@@ -94,6 +94,45 @@ const MyOrders = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Customer Info (optional for user) */}
+              {order.customer && (
+                <div className="px-4 pt-2 text-sm text-text-muted border-b border-gray-100 pb-2">
+                  <div className="flex flex-wrap gap-4">
+                    {order.customer.name && (
+                      <div className="flex items-center gap-1">
+                        <User className="w-4 h-4" />
+                        <span>{order.customer.name}</span>
+                      </div>
+                    )}
+                    {order.customer.phone && (
+                      <div className="flex items-center gap-1">
+                        <Phone className="w-4 h-4" />
+                        <span>{order.customer.phone}</span>
+                      </div>
+                    )}
+                  </div>
+                  {order.customer.address && (
+                    <div className="flex items-start gap-1 mt-1">
+                      <MapPin className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{order.customer.address}{order.customer.city ? `، ${order.customer.city}` : ''}</span>
+                    </div>
+                  )}
+                  {order.customer.locationLink && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <Navigation className="w-4 h-4 flex-shrink-0" />
+                      <a 
+                        href={order.customer.locationLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-accent hover:underline"
+                      >
+                        رابط الموقع
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Order Items */}
               <div className="p-4">

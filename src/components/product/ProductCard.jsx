@@ -9,32 +9,47 @@ const ProductCard = ({ product }) => {
   const [quantity, setQuantity] = useState(0);
   const [imageError, setImageError] = useState(false);
 
+  // البحث عن العنصر في السلة (أول لون)
+  const cartItem = cartItems.find((item) => item.id === product.id);
+  const selectedColor = cartItem?.selectedColor;
+
   // استخدام أول صورة أو الصورة القديمة
-const imageUrl = product.colors?.[0]?.images?.[0] || product.image;
+  const imageUrl = product.colors?.[0]?.images?.[0] || product.image;
 
   useEffect(() => {
-    const cartItem = cartItems.find((item) => item.id === product.id);
     setQuantity(cartItem?.quantity || 0);
-  }, [cartItems, product.id]);
+  }, [cartItem]);
 
- const handleAddToCart = () => {
-  const defaultColor = product.colors?.[0] || null;
-  dispatch({ type: "ADD_TO_CART", payload: { ...product, selectedColor: defaultColor } });
-};
+  const handleAddToCart = () => {
+    const defaultColor = product.colors?.[0] || null;
+    dispatch({ type: "ADD_TO_CART", payload: { ...product, selectedColor: defaultColor } });
+  };
 
   const handleIncrease = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    dispatch({ type: "INCREASE_QUANTITY", payload: product.id });
+    if (selectedColor) {
+      dispatch({
+        type: "INCREASE_QUANTITY",
+        payload: { id: product.id, color: selectedColor },
+      });
+    }
   };
 
   const handleDecrease = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!selectedColor) return;
     if (quantity === 1) {
-      dispatch({ type: "REMOVE_FROM_CART", payload: product.id });
+      dispatch({
+        type: "REMOVE_FROM_CART",
+        payload: { id: product.id, color: selectedColor },
+      });
     } else {
-      dispatch({ type: "DECREASE_QUANTITY", payload: product.id });
+      dispatch({
+        type: "DECREASE_QUANTITY",
+        payload: { id: product.id, color: selectedColor },
+      });
     }
   };
 
